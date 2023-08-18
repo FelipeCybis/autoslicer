@@ -1,4 +1,7 @@
 # autoslicer
+
+Forked from https://github.com/vinjarv/autoslicer
+
 Python script for automatic slicing of STL files with PrusaSlicer
 
 autoslicer.py works either as a python module or a command line tool
