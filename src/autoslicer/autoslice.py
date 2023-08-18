@@ -2,6 +2,8 @@ import argparse
 import os
 import subprocess
 import tempfile
+from pathlib import Path
+import configparser
 
 import numpy as np
 from stl import Mesh
@@ -19,8 +21,14 @@ class AutoSlicer:
         slicer_path -- location of PrusaSlicer executable. Should be .AppImage or prusa-slicer-console.exe
         config_path -- location of printer config file
         """
-        self.slicer = slicer_path
-        self.config = config_path
+        self.slicer = str(Path(slicer_path).expanduser().resolve())
+        self.config_path = str(Path(config_path).expanduser().resolve())
+
+        self.config = configparser.ConfigParser()
+        with open(config_path) as stream:
+            self.config.read_string("[top]\n" + stream.read())
+
+        print(self.config)
 
 
     def __tweakFile(self, input_file, tmpdir):
@@ -30,14 +38,10 @@ class AutoSlicer:
             output_file = os.path.join(tmpdir, "tweaked.stl")
             print(output_file)
             curr_path = os.path.dirname(os.path.abspath(__file__))
-            if os.name == "nt":
-
-                python_path = os.path.join(curr_path, "venv", "Scripts", "python")
-            else:
-                python_path = os.path.join(curr_path, "venv", "bin", "python")
-            tweaker_path = os.path.join(curr_path, "Tweaker-3/Tweaker.py")
-            result = subprocess.run([python_path, tweaker_path, "-i", input_file, "-o", output_file, "-x", "-vb"]
-                                    , capture_output=True, text=True).stdout
+        
+            tweaker_path = os.path.join(curr_path, "../../Tweaker-3/Tweaker.py")
+            result = subprocess.run(["python", tweaker_path, "-i", input_file, "-o", output_file, "-x", "-vb"],
+                                    shell=True, capture_output=True, text=True).stdout
             # Get "unprintability" from stdout
             _, temp = result.splitlines()[-5].split(":")
             unprintability = str(round(float(temp.strip()), 2))
@@ -76,14 +80,15 @@ class AutoSlicer:
         filename, _ = os.path.basename(self.input_file).rsplit(".", 1)
         filename = self.__cleanName(filename)
 
+        output_path = str(Path(output_path).expanduser().resolve())
         output_file = os.path.join(
             output_path,
-            (filename + "_U" + str(unprintability) + "_{print_time}" ".gcode")
+            (filename + "_U" + str(unprintability) + "_{print_time}" + "_" + self.config["top"]["filament_type"] + "_" + self.config["top"]["printer_model"] + ".gcode")
             )
         
         # Form command to run
         # Example: prusa-slicer-console.exe --load MK3Sconfig.ini -g -o outputFiles/sliced.gcode inputFiles/input.gcode
-        cmd = [self.slicer, "--load", self.config]
+        cmd = [self.slicer, "--load", self.config_path]
 
         if float(unprintability) > self.treshold_brim:
             cmd.extend(["--brim-width", "5", "--skirt-distance", "6"])
@@ -120,7 +125,15 @@ class AutoSlicer:
         input -- file to slice (STL or 3MF)
         output -- path to place output GCODE
         """
-        self.input_file = input
+        try:
+            input = Path(input)
+        except TypeError as e:
+            raise TypeError(
+                "input argument must be a pathlib.Path (or a type that supports"
+                " casting to pathlib.Path, such as string)."
+            ) from e
+
+        self.input_file = str(input.expanduser().resolve())
         with tempfile.TemporaryDirectory() as temp_directory:
             print("Temp. dir:", temp_directory)
             tweaked_file, unprintability = self.__tweakFile(self.input_file, temp_directory)
