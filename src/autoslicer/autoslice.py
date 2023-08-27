@@ -60,6 +60,7 @@ class AutoSlicer:
 
         self.filament_type = self.config["top"]["filament_type"]
         self.printer_model = self.config["top"]["printer_model"]
+        self.layer_height = self.config["top"]["layer_height"]
 
     def __tweakFile(self, input_file, tmpdir):
         """Run Tweaker.py from https://github.com/ChristophSchranz/Tweaker-3
@@ -176,7 +177,8 @@ class AutoSlicer:
         unprintability = max([float(v.unprintability) for v in self.volumes])
 
         output_path = Path(output_path).expanduser().resolve()
-        output_name = output_path.stem + f"_U{unprintability}" + "_{print_time}"
+        output_name = output_path.stem + f"_{self.layer_height}mm"
+        output_name += f"_U{unprintability}" + "_{print_time}"
         output_name += f"_{self.filament_type}_{self.printer_model}.gcode"
 
         output_file = str(output_path.with_name(output_name))
