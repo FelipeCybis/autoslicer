@@ -96,7 +96,7 @@ class AutoSlicer:
             # Get "unprintability" from stdout
             _, temp = result.splitlines()[-5].split(":")
             unprintability = str(round(float(temp.strip()), 2))
-            print("Unprintability: " + unprintability)
+            
             return output_file, unprintability
         except Exception:
             print("Couldn't run tweaker on file " + input_file)
@@ -175,6 +175,7 @@ class AutoSlicer:
             cmd.extend(v_args)
 
         unprintability = max([float(v.unprintability) for v in self.volumes])
+        print("Unprintability: " + f"{unprintability}")
 
         output_path = Path(output_path).expanduser().resolve()
         output_name = output_path.stem + f"_{self.layer_height}mm"
@@ -213,8 +214,6 @@ class AutoSlicer:
             with informations about the print (printing time, printer model, etc.).
         """
         with tempfile.TemporaryDirectory() as temp_directory:
-            print("Temp. dir:", temp_directory)
-
             for v in self.volumes:
                 v.tmp_path, v.unprintability = self.__tweakFile(v.path, temp_directory)
                 v.tmp_path = self.__adjustHeight(v.tmp_path, temp_directory)
@@ -223,6 +222,34 @@ class AutoSlicer:
 
         if view_output:
             self.view_gcode(self.last_output_file)
+
+    def insert_pause_print(self, z, comment=None):
+        if comment is None:
+            comment = "Place bearings in slots and resume printing"
+
+        pause_gcode = [";PAUSE_PRINT\n", f"M117 {comment}\n", "M601\n"]
+
+        with open(self.last_output_file, "r") as f:
+            gcode = f.readlines()
+
+        insert_idx = 0
+        for i, line in enumerate(gcode):
+            if line.startswith(f";{z}"):
+                if gcode[i - 1].startswith(";AFTER_LAYER_CHANGE"):
+                    insert_idx = i + 1
+                    break
+
+        if insert_idx == 0:
+            raise ValueError(
+                f"Layer at height {z} was not found in file "
+                f"{str(self.last_output_file)}"
+            )
+        
+        [gcode.insert(insert_idx, gcode_str) for gcode_str in pause_gcode[::-1]]
+
+        with open(self.last_output_file, "w") as f:
+            for gcode_line in gcode:
+                f.write(gcode_line)
 
     def add_volume(self, input, **kwargs):
         """Add model (.stl or .mf3) to the slicer.
@@ -276,8 +303,8 @@ class AutoSlicer:
 
 
 class Volume:
-    """Container for the models to be sliced by AutoSlicer.
-    """
+    """Container for the models to be sliced by AutoSlicer."""
+
     def __init__(self, input_path, args=""):
         self.path = input_path
         self.args = args
