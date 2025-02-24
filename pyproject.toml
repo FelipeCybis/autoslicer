@@ -1,16 +1,18 @@
-[tool.poetry]
+[project]
 name = "autoslicer"
 version = "0.1.0"
 description = "Autoslicer is a cmd/python helper for automatic slicing with PrusaSlicer"
-authors = ["Your Name <you@example.com>"]
-readme = "README.md"
-
-[tool.poetry.dependencies]
-python = "^3.11"
-numpy = "^1.25.2"
-numpy-stl = "^3.0.1"
-
+authors = [{ name = "Your Name", email = "you@example.com" }]
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=2.0",
+    "numpy-stl>=3.0.1",
+    "tweaker3",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv.sources]
+tweaker3 = { git = "https://github.com/ChristophSchranz/Tweaker-3.git" }
