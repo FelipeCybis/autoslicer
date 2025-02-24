@@ -1,9 +1,9 @@
 import argparse
+import configparser
 import os
 import subprocess
 import tempfile
 from pathlib import Path
-import configparser
 
 import numpy as np
 from stl import Mesh
@@ -83,9 +83,7 @@ class AutoSlicer:
             output_file = os.path.join(tmpdir, "tweaked.stl")
             curr_path = os.path.dirname(os.path.abspath(__file__))
 
-            tweaker_path = os.path.join(curr_path, "../../Tweaker-3/Tweaker.py")
-
-            cmd = ["python", tweaker_path]
+            cmd = ["tweaker3"]
             cmd += ["-i", input_file, "-o", output_file]
             cmd += ["-x", "-vb"]
 
@@ -96,10 +94,10 @@ class AutoSlicer:
             # Get "unprintability" from stdout
             _, temp = result.splitlines()[-5].split(":")
             unprintability = str(round(float(temp.strip()), 2))
-            
+
             return output_file, unprintability
         except Exception:
-            print("Couldn't run tweaker on file " + input_file)
+            print("Couldn't run tweaker on file " + input_file, result)
 
     def __adjustHeight(self, input_file, tmpdir):
         """Move STL coordinates so Zmin = 0.
@@ -244,7 +242,7 @@ class AutoSlicer:
                 f"Layer at height {z} was not found in file "
                 f"{str(self.last_output_file)}"
             )
-        
+
         [gcode.insert(insert_idx, gcode_str) for gcode_str in pause_gcode[::-1]]
 
         with open(self.last_output_file, "w") as f:
